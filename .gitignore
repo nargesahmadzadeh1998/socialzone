@@ -1,0 +1,16 @@
+node_modules
+.next
+.next/standalone
+out
+build
+dist
+.env
+.env.local
+.env.production
+*.log
+.DS_Store
+/data
+/coverage
+.vitest-cache
+next-env.d.ts
+tsconfig.tsbuildinfo

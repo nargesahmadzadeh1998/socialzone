@@ -1,0 +1,21 @@
+{
+  # Local self-signed by default; flip to `auto_https disable_redirects` if needed.
+  local_certs
+  admin off
+}
+
+localhost, https://localhost {
+  encode zstd gzip
+
+  # User-uploaded images served from the shared volume.
+  handle_path /uploads/* {
+    root * /uploads
+    file_server
+  }
+
+  # Stripe sends webhooks to /api/webhooks/stripe -- pass through.
+  reverse_proxy app:3000 {
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Real-IP {remote_host}
+  }
+}

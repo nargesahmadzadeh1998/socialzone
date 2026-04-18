@@ -1,0 +1,188 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ATTENDEE
+  ADMIN
+}
+
+enum RegistrationStatus {
+  PENDING
+  PAID
+  REFUNDED
+  CANCELLED
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  emailVerifiedAt DateTime?
+  displayName     String
+  bio             String?
+  city            String?
+  profession      String?
+  role            Role      @default(ATTENDEE)
+  referralCode    String    @unique
+  referredByCode  String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  interests     UserInterest[]
+  events        Event[]           @relation("HostedEvents")
+  registrations Registration[]
+  reviews       Review[]
+  sessions      Session[]
+  accounts      Account[]
+  memberships   GroupMembership[]
+}
+
+model Interest {
+  id    String @id @default(cuid())
+  slug  String @unique
+  label String
+
+  users  UserInterest[]
+  events EventInterest[]
+}
+
+model UserInterest {
+  userId     String
+  interestId String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interest   Interest @relation(fields: [interestId], references: [id])
+
+  @@id([userId, interestId])
+  @@index([interestId])
+}
+
+model Event {
+  id             String    @id @default(cuid())
+  hostId         String
+  host           User      @relation("HostedEvents", fields: [hostId], references: [id])
+  title          String
+  description    String
+  startsAt       DateTime
+  endsAt         DateTime
+  timezone       String
+  addressText    String
+  lat            Float?
+  lng            Float?
+  capacity       Int
+  priceMinor     Int
+  coverImagePath String?
+  cancelledAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  interests     EventInterest[]
+  registrations Registration[]
+  reviews       Review[]
+
+  @@index([startsAt])
+  @@index([hostId])
+}
+
+model EventInterest {
+  eventId    String
+  interestId String
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  interest   Interest @relation(fields: [interestId], references: [id])
+
+  @@id([eventId, interestId])
+  @@index([interestId])
+}
+
+model Registration {
+  id                      String             @id @default(cuid())
+  userId                  String
+  eventId                 String
+  status                  RegistrationStatus @default(PENDING)
+  amountMinor             Int
+  stripeCheckoutSessionId String?            @unique
+  stripePaymentIntentId   String?            @unique
+  createdAt               DateTime           @default(now())
+  paidAt                  DateTime?
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId])
+  @@index([eventId, status])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  eventId   String
+  stars     Int
+  text      String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  purpose    String   @default("EMAIL_VERIFY")
+
+  @@unique([identifier, token])
+}
+
+// Deferred — anticipated by data model, no UI/routes in v1.
+model Group {
+  id        String            @id @default(cuid())
+  name      String
+  createdAt DateTime          @default(now())
+  members   GroupMembership[]
+}
+
+model GroupMembership {
+  userId  String
+  groupId String
+  role    String @default("MEMBER")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([userId, groupId])
+}

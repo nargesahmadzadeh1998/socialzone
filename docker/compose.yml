@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: socialzone
+      POSTGRES_PASSWORD: socialzone
+      POSTGRES_DB: socialzone
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U socialzone -d socialzone"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+      DATABASE_URL: postgresql://socialzone:socialzone@postgres:5432/socialzone
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      APP_URL: ${APP_URL}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      RESEND_FROM: ${RESEND_FROM}
+      CRON_SHARED_SECRET: ${CRON_SHARED_SECRET}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_DIR: /data/uploads
+      SEED_ON_START: ${SEED_ON_START:-true}
+    volumes:
+      - uploads:/data/uploads
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - uploads:/uploads:ro
+
+  cron:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cron
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      APP_INTERNAL_URL: http://app:3000
+      CRON_SHARED_SECRET: ${CRON_SHARED_SECRET}
+      REMINDER_INTERVAL_SECONDS: "3600"
+      CLEANUP_INTERVAL_SECONDS: "600"
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:
+  caddy_config:
