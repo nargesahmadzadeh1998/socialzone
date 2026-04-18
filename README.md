@@ -14,6 +14,20 @@ docker compose up --build
 
 That's four commands. On first run, migrations + seed run automatically (`SEED_ON_START=true` in `docker/compose.yml`). Flip to `false` after first boot.
 
+### Public IP deployment (plain HTTP, port 8000)
+
+On a VPS with no domain, use the `compose.public.yml` override — Caddy binds HTTP on port 8000 and skips TLS provisioning.
+
+```bash
+cp .env.example .env
+# edit .env: set APP_URL and NEXTAUTH_URL to http://<your-public-ip>:8000
+# (optional) change PUBLIC_PORT if 8000 is taken
+cd docker
+docker compose -f compose.yml -f compose.public.yml up --build -d
+```
+
+Open port 8000 in your firewall / cloud security group. For real use, point a domain at the host and revert to the default `compose.yml` so Caddy provisions a real certificate automatically.
+
 ## 5-minute walkthrough
 
 1. **Home** → click **Create an account**. Use any email; with the seed you can log in as `user1@example.local` / `password123` instead.

@@ -1,0 +1,9 @@
+services:
+  caddy:
+    ports: !override
+      - "${PUBLIC_PORT:-8000}:80"
+    volumes:
+      - ./Caddyfile.public:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - uploads:/uploads:ro
