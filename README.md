@@ -14,6 +14,16 @@ docker compose up --build
 
 That's four commands. On first run, migrations + seed run automatically (`SEED_ON_START=true` in `docker/compose.yml`). Flip to `false` after first boot.
 
+### One-click deploy to Render (no CLI, no server)
+
+1. Sign in to https://render.com (GitHub auth).
+2. **New → Blueprint** → pick `nargesahmadzadeh1998/socialzone`, branch `claude/setup-community-builder-woh0W`.
+3. Click **Apply**. Render reads `render.yaml` and provisions Postgres + web service + two cron jobs.
+
+After first deploy, go to the web service's URL (looks like `https://socialzone-app.onrender.com`), and update `APP_URL` + `NEXTAUTH_URL` env vars to match the real URL (Render sometimes suffixes with a random string). One redeploy and you're live with TLS.
+
+Free web plan spins down after 15 min idle; upgrade to Starter ($7/mo) for always-on + persistent disk for uploads.
+
 ### Public IP deployment (plain HTTP, port 8000)
 
 On a VPS with no domain, use the `compose.public.yml` override — Caddy binds HTTP on port 8000 and skips TLS provisioning.

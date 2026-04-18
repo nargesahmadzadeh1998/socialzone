@@ -13,4 +13,6 @@ if [ "${SEED_ON_START:-false}" = "true" ]; then
 fi
 
 echo "[entrypoint] starting Next.js"
+export HOSTNAME="${HOSTNAME:-0.0.0.0}"
+export PORT="${PORT:-3000}"
 exec node server.js

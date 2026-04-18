@@ -34,7 +34,15 @@ function refCode(): string {
 }
 
 async function main() {
-  // Reset (idempotent-ish)
+  // Skip if already seeded (prevents wiping prod on container redeploy).
+  if (process.env.SEED_SKIP_IF_POPULATED !== "false") {
+    const existing = await prisma.user.count();
+    if (existing > 0) {
+      console.log(`Seed skipped: ${existing} users already exist. Set SEED_SKIP_IF_POPULATED=false to force.`);
+      return;
+    }
+  }
+
   await prisma.review.deleteMany();
   await prisma.registration.deleteMany();
   await prisma.eventInterest.deleteMany();

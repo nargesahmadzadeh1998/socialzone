@@ -1,0 +1,91 @@
+databases:
+  - name: socialzone-db
+    plan: free
+    databaseName: socialzone
+    user: socialzone
+
+services:
+  - type: web
+    name: socialzone-app
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./docker/Dockerfile.app
+    dockerContext: .
+    healthCheckPath: /
+    autoDeploy: true
+    disk:
+      name: uploads
+      mountPath: /data/uploads
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: socialzone-db
+          property: connectionString
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: CRON_SHARED_SECRET
+        generateValue: true
+      - key: APP_URL
+        # Render gives every web service a *.onrender.com URL. After the first
+        # deploy, update this and NEXTAUTH_URL to the real URL in the dashboard.
+        value: https://socialzone-app.onrender.com
+      - key: NEXTAUTH_URL
+        value: https://socialzone-app.onrender.com
+      - key: STRIPE_SECRET_KEY
+        value: sk_test_placeholder
+      - key: STRIPE_WEBHOOK_SECRET
+        value: whsec_placeholder
+      - key: RESEND_API_KEY
+        value: re_placeholder
+      - key: RESEND_FROM
+        value: "Socialzone <no-reply@socialzone.local>"
+      - key: STORAGE_DRIVER
+        value: local
+      - key: STORAGE_LOCAL_DIR
+        value: /data/uploads
+      - key: SEED_ON_START
+        value: "true"
+      - key: SKIP_ENV_VALIDATION
+        value: "1"
+
+  - type: cron
+    name: socialzone-reminders
+    runtime: image
+    image:
+      url: curlimages/curl:8.11.1
+    schedule: "17 * * * *"
+    envVars:
+      - key: CRON_SHARED_SECRET
+        fromService:
+          type: web
+          name: socialzone-app
+          envVarKey: CRON_SHARED_SECRET
+      - key: APP_URL
+        fromService:
+          type: web
+          name: socialzone-app
+          envVarKey: APP_URL
+    dockerCommand: |
+      sh -c 'curl -fsS -X POST -H "x-cron-secret: $CRON_SHARED_SECRET" "$APP_URL/api/cron/reminders"'
+
+  - type: cron
+    name: socialzone-cleanup
+    runtime: image
+    image:
+      url: curlimages/curl:8.11.1
+    schedule: "*/10 * * * *"
+    envVars:
+      - key: CRON_SHARED_SECRET
+        fromService:
+          type: web
+          name: socialzone-app
+          envVarKey: CRON_SHARED_SECRET
+      - key: APP_URL
+        fromService:
+          type: web
+          name: socialzone-app
+          envVarKey: APP_URL
+    dockerCommand: |
+      sh -c 'curl -fsS -X POST -H "x-cron-secret: $CRON_SHARED_SECRET" "$APP_URL/api/cron/cleanup"'
