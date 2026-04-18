@@ -272,7 +272,7 @@ All mutation routes: Zod parse → authz check → domain call. No exceptions.
 
 ## 5. Auth Model
 
-**Session strategy: DB sessions** via Auth.js Prisma adapter. Chosen over JWT because (a) credentials + email-verification flows need server-side invalidation on password change / email change, (b) the Postgres hop is negligible at this scale, (c) revocation stays trivial. Cookie is HTTP-only, SameSite=Lax, Secure in prod.
+**Session strategy: JWT sessions** via Auth.js. Originally specced as DB sessions, but Auth.js v5 only supports DB sessions with OAuth providers — the credentials provider **requires** JWT. The Prisma adapter still manages account linking + verification tokens. Cookie is HTTP-only, SameSite=Lax, Secure in prod. Revocation on password change: the next login issues a new JWT; existing tokens expire at their `exp`.
 
 **Roles:**
 - `ATTENDEE` — default, everyone.

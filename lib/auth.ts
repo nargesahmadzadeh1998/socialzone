@@ -23,7 +23,9 @@ const credentialsSchema = z.object({
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "database" },
+  // Auth.js v5 requires JWT sessions when using the credentials provider.
+  // On password change the jti rotates on next sign-in; logout clears the cookie.
+  session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [
     Credentials({
@@ -48,12 +50,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    session: async ({ session, user }) => {
-      const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-      if (dbUser) {
-        session.user.id = dbUser.id;
-        session.user.role = dbUser.role;
-        session.user.emailVerifiedAt = dbUser.emailVerifiedAt;
+    jwt: async ({ token, user }) => {
+      if (user?.id) token.sub = user.id;
+      return token;
+    },
+    session: async ({ session, token }) => {
+      if (token.sub) {
+        const dbUser = await prisma.user.findUnique({ where: { id: token.sub } });
+        if (dbUser) {
+          session.user.id = dbUser.id;
+          session.user.role = dbUser.role;
+          session.user.emailVerifiedAt = dbUser.emailVerifiedAt;
+        }
       }
       return session;
     },
